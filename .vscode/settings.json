@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["backend"],
+  "python.analysis.extraPaths": ["backend"],
+  "python.envFile": "${workspaceFolder}/backend/.env",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": { "source.organizeImports": "explicit" }
+  },
+  "files.exclude": { "**/__pycache__": true, "**/*.pyc": true }
+}
