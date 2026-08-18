@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from app.config import Settings
+from app.persistence.cache import CacheTTL
 from app.sourcing.adapters.brightdata_mcp import (
     BrightDataLocalSource,
     BrightDataPriceSource,
@@ -23,4 +24,8 @@ def montar_orquestrador(cfg: Settings) -> Orquestrador:
         local_sources=local,
         concorrencia=cfg.concorrencia,
         timeout_s=cfg.timeout_fonte_s,
+        max_chamadas_mcp_por_job=cfg.max_chamadas_mcp_por_job,
+        max_tentativas_rate_limit=cfg.max_tentativas_rate_limit,
+        backoff_rate_limit_s=cfg.backoff_rate_limit_s,
+        cache=CacheTTL(ttl_segundos=cfg.cache_ttl_s),
     )

@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from app.domain.classificacao import normalizar
 from app.domain.models import Oferta
 from app.persistence.db import sessao
-from app.persistence.orm import HistoricoPreco, ResultadoBusca
+from app.persistence.orm import HistoricoPreco, ListaCompra, ResultadoBusca
 
 
 def _obs(o: Oferta) -> str | None:
@@ -23,6 +23,21 @@ def _obs(o: Oferta) -> str | None:
 
 
 class RepositorioSQL:
+    async def criar_lista(
+        self, *, escopo: str, localizacao: str | None, usuario_id: int | None = None
+    ) -> int:
+        """Cria a ListaCompra que ancora `ResultadoBusca.lista_id` (FK NOT NULL).
+
+        Chamado quando o pedido de busca nao veio com `lista_id` existente
+        (hoje o caminho unico, ja' que nao ha' autenticacao de morador/usuario
+        conectada ao endpoint `/buscas` ainda — `usuario_id` fica None).
+        """
+        with sessao() as s:
+            lista = ListaCompra(usuario_id=usuario_id, escopo=escopo, localizacao=localizacao)
+            s.add(lista)
+            s.flush()
+            return lista.id
+
     async def salvar(self, lista_id: int, ofertas: list[Oferta]) -> None:
         with sessao() as s:
             for o in ofertas:
@@ -56,5 +71,10 @@ class RepositorioSQL:
                 return None
             base = ant.preco_centavos or 1
             pct = (preco_atual_centavos - base) / base * 100
-            dias = (datetime.now(UTC) - ant.coletado_em).days
+            # sqlite nao preserva tzinfo na volta (mesmo com DateTime(timezone=True));
+            # Postgres preserva. Trata os dois casos assumindo UTC quando naive.
+            coletado_em = ant.coletado_em
+            if coletado_em.tzinfo is None:
+                coletado_em = coletado_em.replace(tzinfo=UTC)
+            dias = (datetime.now(UTC) - coletado_em).days
             return {"variacao_pct": round(pct, 2), "dias": dias}

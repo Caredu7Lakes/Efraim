@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from app.domain.models import Escopo
+
 
 class ItemIn(BaseModel):
     nome: str
@@ -13,7 +15,10 @@ class ItemIn(BaseModel):
 
 class BuscaIn(BaseModel):
     produtos: list[ItemIn]
-    escopo: str = "nacional"          # local | nacional | internacional
+    # Escopo e' o enum de dominio (nao uma string solta): um valor invalido
+    # vira 422 direto do FastAPI, em vez de estourar 500 dentro da task
+    # (Escopo(payload["escopo"]) so' seria validado ali, tarde demais).
+    escopo: Escopo = Escopo.NACIONAL
     cidade: str | None = None
     cep: str | None = None
     lista_id: int | None = None

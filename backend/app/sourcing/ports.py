@@ -11,18 +11,19 @@ from app.domain.models import (
     Fornecedor,
     Oferta,
 )
+from app.sourcing.orcamento import OrcamentoMCP
 
 
 @runtime_checkable
 class PriceSource(Protocol):
     nome: str
-    async def buscar(self, consulta: ConsultaProduto) -> list[Oferta]: ...
+    async def buscar(self, consulta: ConsultaProduto, orcamento: OrcamentoMCP) -> list[Oferta]: ...
 
 
 @runtime_checkable
 class LocalBusinessSource(Protocol):
     nome: str
-    async def buscar(self, consulta: ConsultaLocal) -> list[Oferta]: ...
+    async def buscar(self, consulta: ConsultaLocal, orcamento: OrcamentoMCP) -> list[Oferta]: ...
 
 
 @runtime_checkable

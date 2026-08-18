@@ -13,6 +13,7 @@ from app.domain.models import (
     Disponibilidade,
     Oferta,
 )
+from app.sourcing.orcamento import OrcamentoMCP
 
 
 def _agora() -> datetime:
@@ -22,7 +23,8 @@ def _agora() -> datetime:
 class FakePriceSource:
     nome = "fake-price"
 
-    async def buscar(self, consulta: ConsultaProduto) -> list[Oferta]:
+    async def buscar(self, consulta: ConsultaProduto, orcamento: OrcamentoMCP) -> list[Oferta]:
+        # nao faz chamada MCP real: nao ha' o que contar contra o orcamento.
         n = consulta.item.nome
         return [
             Oferta(produto=n, marca="ACME", preco_centavos=1990, local="Loja Alpha",
@@ -41,7 +43,7 @@ class FakePriceSource:
 class FakeLocalSource:
     nome = "fake-local"
 
-    async def buscar(self, consulta: ConsultaLocal) -> list[Oferta]:
+    async def buscar(self, consulta: ConsultaLocal, orcamento: OrcamentoMCP) -> list[Oferta]:
         n = consulta.item.nome
         return [
             Oferta(produto=n, preco_centavos=None, local="Distribuidora Local",

@@ -15,5 +15,17 @@ services:
       timeout: 3s
       retries: 5
 
+  # broker + result backend do Celery (fila real, substitui o runner
+  # in-process de v1 — ver backend/app/jobs/celery_app.py)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   efraim_pg:
