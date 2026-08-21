@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from app.domain.classificacao import normalizar
 from app.domain.models import Oferta
 from app.persistence.db import sessao
-from app.persistence.orm import HistoricoPreco, ListaCompra, ResultadoBusca
+from app.persistence.orm import HistoricoPreco, ListaCompra, ResultadoBusca, VariacaoBusca
 
 
 def _obs(o: Oferta) -> str | None:
@@ -78,3 +78,29 @@ class RepositorioSQL:
                 coletado_em = coletado_em.replace(tzinfo=UTC)
             dias = (datetime.now(UTC) - coletado_em).days
             return {"variacao_pct": round(pct, 2), "dias": dias}
+
+    async def salvar_variacoes_busca(self, categoria: str, variacoes: list[str]) -> None:
+        """Upsert por (categoria, variacao) - reaparecer incrementa
+        `vezes_encontrada` em vez de duplicar linha (e' o que da' o "as que
+        mais aparecem" pedido pelo usuario, 20/08)."""
+        with sessao() as s:
+            for v in variacoes:
+                existente = (
+                    s.query(VariacaoBusca).filter_by(categoria=categoria, variacao=v).first()
+                )
+                if existente:
+                    existente.vezes_encontrada += 1
+                    existente.atualizado_em = datetime.now(UTC)
+                else:
+                    s.add(VariacaoBusca(categoria=categoria, variacao=v))
+
+    async def variacoes_mais_frequentes(self, categoria: str, limite: int = 5) -> list[str]:
+        with sessao() as s:
+            linhas = (
+                s.query(VariacaoBusca)
+                .filter_by(categoria=categoria)
+                .order_by(VariacaoBusca.vezes_encontrada.desc())
+                .limit(limite)
+                .all()
+            )
+            return [linha.variacao for linha in linhas]

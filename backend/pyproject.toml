@@ -16,4 +16,4 @@ extend-exclude = ["migrations/versions"]  # gerado por `alembic revision --autog
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["UP042"]
+ignore = ["UP042", "B008"]  # B008: Depends(...) em default e' o idioma padrao do FastAPI

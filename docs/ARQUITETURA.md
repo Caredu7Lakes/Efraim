@@ -44,7 +44,7 @@ flowchart TD
     BE --> JOB["ETAPA 2 · Orquestrador<br/>job assincrono · asyncio.gather + semaforo + timeout"]
 
     JOB --> A["Bloco A<br/>Marketplaces BR + Google Shopping"]
-    JOB --> B["Bloco B<br/>Regional / Google Maps · 5 regioes"]
+    JOB --> B["Bloco B<br/>Regional / Google Maps · busca ampla, regiao classificada apos coleta"]
     JOB --> C["Bloco C<br/>Sites proprios · distrib / fabr / import"]
     JOB --> D["Bloco D<br/>Internacional · EUA + China"]
 
@@ -162,7 +162,7 @@ Escopo nacional **e** internacional preservados. Ferramentas conforme a skill `b
 | A — Marketplaces BR (ML, Magalu, Shopee, Americanas) | `search_engine_batch` para resolver → `scrape_as_markdown` / `extract` | Sem pipeline dedicado a marketplaces BR; `extract` mapeia direto ao schema `Oferta` |
 | A — agregador cross-retailer | `web_data_google_shopping` | JSON multi-seller num call; ótimo ponto de partida |
 | A — retailers com pipeline | `web_data_amazon_product`, `web_data_walmart_product`, `web_data_ebay_product`, `web_data_bestbuy_products` | Estruturado > scraping: mais rápido, sem parsing |
-| B — Regional / Google Maps (5 regiões) | grupo `business` (Google Maps) + `search_engine` "ponto de venda + cidade" + `extract` | Um servidor cobre Maps com bypass; dispensa API de Places à parte |
+| B — Regional / Google Maps (busca ampla, ~31 cidades-âncora; região é classificação do resultado — ver §11) | Bright Data Web Unlocker REST (`api.brightdata.com/request`, zona `efraim_1`) + Google Maps `&brd_json=1` | Migrado da Apify em 20/08 (402 Payment Required na conta); concorrência limitada a 3 chamadas simultâneas (teto medido da conta) |
 | C — Sites próprios (distrib / fabr / import) | `scrape_as_markdown` + `extract` | Extrai preço OU contatos na mesma passada |
 | D — Internacional EUA (Mouser, Digi-Key, eBay, Amazon.com) | `web_data_amazon_product_search` / `web_data_ebay_product` + `search_engine` | `--country us`; estruturado onde há, scrape no resto |
 | D — Internacional China (1688, Alibaba, Made-in-China, Taobao) | `scrape_as_markdown` / `extract` com bypass | Resolve o problema de conta/idioma da concepção original |
@@ -319,9 +319,11 @@ Qualidade acima do prazo. Faseamento honesto:
 Portas + DTO `Oferta`; adapter Bright Data MCP (Rapid + `ecommerce`/`business`/`advanced_scraping`); Blocos A/B/C nacionais; `filtrar_top7`; persistência corrigida; seed; fila assíncrona; cotação por `wa.me`.
 
 **v2 — requer extensão (~+5 a 7 dias) por dependências externas**
-Bloco D internacional completo (EUA + China, com tradução técnica PT→EN/ZH); WhatsApp Cloud API com template aprovado pela Meta; cobertura fina das 5 regiões via grupo `business`; endurecimento (observabilidade via `session_stats`, testes de carga, calibração de circuit breakers).
+Bloco D internacional completo (EUA + China, com tradução técnica PT→EN/ZH — construído em 20/08 via glossário determinístico, ver `nomenclatura_chinesa.py`; qualidade limitada ao que está no glossário, não é tradutor genérico); WhatsApp Cloud API com template aprovado pela Meta; endurecimento (observabilidade via `session_stats`, testes de carga, calibração de circuit breakers).
 
-Motivo do corte: tradução técnica correta e aprovação de template Meta não comprimem sem cair a qualidade.
+Bloco B (regional) saiu do escopo cortado em 20/08: migrado da Apify (402 Payment Required) pro Bright Data Web Unlocker REST, busca ampla em ~31 cidades-âncora com região classificada por endereço pós-coleta (não mais "5 regiões" como parâmetro de busca — correção do usuário: "não tem sentido separar pesquisa por região... isso é diferente de pesquisa por região"). Concorrência limitada a 3 chamadas simultâneas — teto medido da conta real, não arbitrário.
+
+Motivo do corte remanescente: tradução técnica correta e aprovação de template Meta não comprimem sem cair a qualidade.
 
 ---
 

@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from datetime import UTC, datetime
 
+from app.domain.extracao_pagina import extrair_quantidade_numerica
 from app.domain.models import (
     Condicao,
     Contato,
     Disponibilidade,
     Oferta,
 )
+
+log = logging.getLogger("efraim.normalizador")
 
 _UNIDADES = {
     "kg",
@@ -73,6 +77,16 @@ def normalizar(raw: dict, *, fonte: str) -> Oferta:
     contato_raw = raw.get("contato")
     contato = Contato(**contato_raw) if isinstance(contato_raw, dict) else contato_raw
 
+    # quantidade real do lote/kit - quem chama pode passar explicitamente
+    # (ex.: `_visitar_organico`, que ja' tem o HTML completo da pagina em
+    # mãos, sinal mais confiavel) ou deixar em branco pra' inferir do
+    # proprio nome/titulo do produto (cobre Mercado Livre/Shopee/actors,
+    # cujos titulos reais costumam dizer "Kit 6 Conectores..." - correcao
+    # do usuario, 20/08: "so' pode descartar apos fazer a conversao").
+    unidades_no_lote = raw.get("unidades_no_lote") or extrair_quantidade_numerica(
+        raw.get("produto", ""),
+    )
+
     return Oferta(
         produto=raw["produto"],
         marca=raw.get("marca"),
@@ -83,8 +97,31 @@ def normalizar(raw: dict, *, fonte: str) -> Oferta:
         fonte=fonte,
         coletado_em=raw.get("coletado_em") or datetime.now(UTC),
         pagamento=raw.get("pagamento"),
-        frete_centavos=_preco_para_centavos(raw.get("frete")),
+        unidades_no_lote=unidades_no_lote,
+        id_externo=raw.get("id_externo"),
+        # `Oferta.frete_centavos` e' `int` (default 0), nao `int | None` -
+        # sem isso, custo_total_centavos (preco + frete) quebraria com
+        # TypeError sempre que o raw nao trouxer "frete" (achado ao ligar o
+        # primeiro chamador real de `normalizar`, o adapter Apify, 19/08).
+        frete_centavos=_preco_para_centavos(raw.get("frete")) or 0,
         contato=contato,
         disponibilidade=Disponibilidade(raw.get("disponibilidade", "desconhecida")),
         condicao=Condicao(raw.get("condicao", "desconhecida")),
+        regiao=raw.get("regiao"),
+        cidade=raw.get("cidade"),
+        uf=raw.get("uf"),
     )
+
+
+def oferta_ou_none(bruto: dict, *, fonte: str) -> Oferta | None:
+    """Wrapper de `normalizar` que descarta (com log) item malformado em vez
+    de derrubar o adapter inteiro - um item ruim de uma fonte com centenas
+    de resultados nao pode custar os outros. Ponto UNICO desse try/except:
+    antes cada adapter (Apify, Bright Data MCP, Bright Data Unlocker)
+    reimplementava a mesma logica separadamente (achado em 20/08, revisao
+    pedida pelo usuario - "a logica nao pode ser duplicada")."""
+    try:
+        return normalizar(bruto, fonte=fonte)
+    except (KeyError, ValueError, TypeError) as exc:
+        log.warning("item ignorado — nao normalizou para Oferta (fonte=%s): %r", fonte, exc)
+        return None

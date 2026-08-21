@@ -39,3 +39,20 @@ def test_sem_preco_todos_mantidos():
     r = filtrar_top7([sem, sem, _of(100)])
     assert len(r.sem_preco) == 2
     assert len(r.top7_online) == 1
+
+
+def test_ordena_por_custo_por_unidade_nao_pelo_preco_bruto_do_anuncio():
+    """Correcao do usuario (20/08): "so' pode descartar apos fazer a
+    conversao" - um kit de 6 por R$12 (R$2/un) nao pode vencer um preco
+    unitario real de R$5 so' porque 12 > 5 e' falso: 5 < 12/6*... o kit e'
+    mais barato por unidade aqui, deve vencer mesmo com preco bruto maior."""
+    kit_mais_barato_por_unidade = Oferta(
+        produto="x", local="kit", link="u", fonte="t", coletado_em=datetime.now(UTC),
+        preco_centavos=1200, unidades_no_lote=6,  # 200/unidade
+    )
+    unitario_mais_caro_por_unidade = Oferta(
+        produto="x", local="unidade", link="u", fonte="t", coletado_em=datetime.now(UTC),
+        preco_centavos=500, unidades_no_lote=1,  # 500/unidade
+    )
+    r = filtrar_top7([unitario_mais_caro_por_unidade, kit_mais_barato_por_unidade])
+    assert r.top7_online[0] is kit_mais_barato_por_unidade

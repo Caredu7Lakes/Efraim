@@ -32,13 +32,25 @@ cd backend
 ```
 
 ## Fluxo de uso da API
+`/buscas` exige autenticação — cada busca e cada resultado ficam presos ao
+usuário que os criou (isolamento lógico, não banco separado por usuário).
+
 ```bash
+# registra o usuário (uma vez)
+curl -X POST localhost:8000/auth/registrar -H 'content-type: application/json' \
+  -d '{"email":"voce@exemplo.com","senha":"uma-senha-com-8+"}'
+
+# loga -> devolve access_token (JWT, válido por JWT_EXPIRA_MINUTOS)
+TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'content-type: application/json' \
+  -d '{"email":"voce@exemplo.com","senha":"uma-senha-com-8+"}' | jq -r .access_token)
+
 # dispara uma busca (job assíncrono) -> devolve job_id
 curl -X POST localhost:8000/buscas -H 'content-type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"produtos":[{"nome":"conector jack P10 estereo"}],"escopo":"nacional"}'
 
-# consulta o resultado (Top 7 + sem preço)
-curl localhost:8000/buscas/<job_id>
+# consulta o resultado (Top 7 + sem preço) — só o dono do job vê (404 pra outro usuário)
+curl localhost:8000/buscas/<job_id> -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Estrutura

@@ -36,7 +36,7 @@ import re
 import shutil
 
 from app.domain.models import ConsultaLocal, ConsultaProduto, Oferta
-from app.domain.normalizador import normalizar
+from app.domain.normalizador import oferta_ou_none
 from app.sourcing.erros import MCPRateLimitError
 from app.sourcing.orcamento import OrcamentoExcedidoError, OrcamentoMCP
 
@@ -86,11 +86,7 @@ async def _chamar_bdata(
 
 
 def _para_oferta(bruto: dict, fonte: str) -> Oferta | None:
-    try:
-        return normalizar(bruto, fonte=fonte)
-    except (KeyError, ValueError, TypeError) as exc:
-        log.warning("item ignorado — nao normalizou para Oferta (fonte=%s): %r", fonte, exc)
-        return None
+    return oferta_ou_none(bruto, fonte=fonte)
 
 
 class BrightDataPriceSource:

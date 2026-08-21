@@ -2,9 +2,33 @@
 runner in-process de v1, agora atras do contrato serializavel."""
 from __future__ import annotations
 
-from app.jobs.tasks import executar_busca_task
+from datetime import UTC, datetime
+
+from app.domain.models import Disponibilidade, Oferta
+from app.jobs.tasks import _sem_preco_por_regiao, executar_busca_task
 from app.persistence.db import sessao
 from app.persistence.orm import ResultadoBusca
+
+
+def _oferta_regional(local: str, regiao: str | None) -> Oferta:
+    return Oferta(
+        produto="x", local=local, link="http://x", fonte="apify-regional",
+        coletado_em=datetime.now(UTC), disponibilidade=Disponibilidade.DESCONHECIDA,
+        regiao=regiao,
+    )
+
+
+def test_sem_preco_por_regiao_agrupa_e_ignora_sem_regiao():
+    ofertas = [
+        _oferta_regional("Loja Sul", "Sul"),
+        _oferta_regional("Loja Sul 2", "Sul"),
+        _oferta_regional("Loja Norte", "Norte"),
+        _oferta_regional("Marketplace generico", None),  # sem regiao - fica de fora
+    ]
+    grupos = _sem_preco_por_regiao(ofertas)
+    assert set(grupos.keys()) == {"Sul", "Norte"}
+    assert len(grupos["Sul"]) == 2
+    assert len(grupos["Norte"]) == 1
 
 
 def test_executar_busca_task_end_to_end_fake():
@@ -17,8 +41,9 @@ def test_executar_busca_task_end_to_end_fake():
         "lista_id": None,
     }
     resultado = executar_busca_task.apply(args=[payload]).get()
-    assert resultado["top7_online"]
-    assert resultado["top7_online"][0]["preco_centavos"] == 1550
+    r = resultado["resultados"][0]
+    assert r["top7_online"]
+    assert r["top7_online"][0]["preco_centavos"] == 1550
 
 
 def test_executar_busca_persiste_resultado_busca():

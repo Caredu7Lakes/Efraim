@@ -57,6 +57,28 @@ class Oferta:
     disponibilidade: Disponibilidade = Disponibilidade.DESCONHECIDA
     condicao: Condicao = Condicao.DESCONHECIDA
     frete_centavos: int = 0
+    # preenchido pelo Bloco B (regional/Google Maps) - a busca cobre as 5
+    # regioes do Brasil sem restringir a nenhuma por padrao; None quando a
+    # oferta nao veio de uma busca regional (ex.: marketplace, Bloco C).
+    regiao: str | None = None
+    cidade: str | None = None
+    uf: str | None = None
+    # id estavel do anuncio NA FONTE de origem (ex.: "MLB3882572605" no
+    # Mercado Livre) - None quando a fonte nao expoe um id assim ou nao foi
+    # extraido. Usado pra deduplicar o MESMO anuncio quando ele chega por 2
+    # caminhos diferentes (ex.: actor Apify E busca direta do mesmo
+    # marketplace - achado 20/08, revisao pedida pelo usuario). Generico
+    # (nao amarrado a "MLB") pra' servir qualquer fonte que tenha id
+    # proprio no futuro (ASIN da Amazon, itemId do eBay etc.).
+    id_externo: str | None = None
+    # quantas unidades `preco_centavos` realmente cobre - 1 (preco unitario)
+    # por padrao; > 1 quando a oferta e' um kit/lote (ex.: "Kit 6
+    # Conectores"). Correcao do usuario (20/08): comparar/descartar ofertas
+    # pelo preco BRUTO do anuncio deixava um kit barato vencer um preco
+    # unitario real so' por ter numero absoluto menor - a comparacao tem
+    # que ser por CUSTO POR UNIDADE (ver `custo_unitario_centavos` abaixo e
+    # `sourcing.filtro.filtrar_top7`).
+    unidades_no_lote: int = 1
 
     @property
     def tem_preco(self) -> bool:
@@ -67,6 +89,15 @@ class Oferta:
         if self.preco_centavos is None:
             return None
         return self.preco_centavos + self.frete_centavos
+
+    @property
+    def custo_unitario_centavos(self) -> int | None:
+        """Custo total (preco + frete) dividido pelas unidades do lote -
+        base real de comparacao entre ofertas (ver `unidades_no_lote`)."""
+        total = self.custo_total_centavos
+        if total is None:
+            return None
+        return round(total / self.unidades_no_lote)
 
 
 @dataclass(frozen=True)
